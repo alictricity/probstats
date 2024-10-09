@@ -1,0 +1,694 @@
+Dijkstra
+
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <utility> // for std::pair
+#include <chrono>  // for time measurement
+#include <climits>
+
+using namespace std;
+
+// Type alias for clarity
+using pii = pair<int, int>; // Pair of (distance, vertex)
+
+class Graph {
+public:
+    // Number of vertices
+    int V;
+    // Adjacency list representation
+    vector<vector<pii>> adj;
+
+    Graph(int V) {
+        this->V = V;
+        adj.resize(V);
+    }
+
+    // Add edge to the graph
+    void addEdge(int u, int v, int w) {
+        adj[u].emplace_back(w, v);
+        adj[v].emplace_back(w, u); // For undirected graph
+    }
+
+    // Dijkstra's algorithm
+    vector<int> dijkstra(int src) {
+        vector<int> dist(V, INT_MAX); // Initialize distances
+        priority_queue<pii, vector<pii>, greater<pii>> pq; // Min-heap priority queue
+
+        dist[src] = 0; // Distance to the source is 0
+        pq.emplace(0, src); // Push source into the priority queue
+
+        while (!pq.empty()) {
+            int d = pq.top().first; // Current distance
+            int u = pq.top().second; // Current vertex
+            pq.pop();
+
+            // If we found a longer path to u, we can ignore it
+            if (d > dist[u]) continue;
+
+            // Relax edges
+            for (const auto& edge : adj[u]) {
+                int weight = edge.first;
+                int v = edge.second;
+
+                // If a shorter path to v is found
+                if (dist[u] + weight < dist[v]) {
+                    dist[v] = dist[u] + weight;
+                    pq.emplace(dist[v], v); // Push updated distance to the queue
+                }
+            }
+        }
+        return dist;
+    }
+};
+
+int main() {
+    auto start = chrono::high_resolution_clock::now(); // Start timing
+
+    Graph g(6); // Create a graph with 6 vertices
+    g.addEdge(0, 1, 4);
+    g.addEdge(0, 2, 1);
+    g.addEdge(2, 1, 2);
+    g.addEdge(1, 3, 1);
+    g.addEdge(2, 3, 5);
+    g.addEdge(3, 4, 3);
+    g.addEdge(4, 5, 1);
+
+    int source = 0; // Starting node
+    vector<int> distances = g.dijkstra(source);
+
+    // Output distances from source to all vertices
+    cout << "Distances from source node " << source << ":\n";
+    for (int i = 0; i < distances.size(); ++i) {
+        cout << "Vertex " << i << ": " << distances[i] << endl;
+    }
+
+    auto end = chrono::high_resolution_clock::now(); // End timing
+    auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
+    cout << "Time taken: " << duration.count() << " microseconds\n";
+
+    return 0;
+}
+
+
+
+
+
+
+Bellman-Ford
+
+
+#include <iostream>
+#include <vector>
+#include <tuple>
+#include <chrono>
+#include <limits>
+
+using namespace std;
+
+const int INF = numeric_limits<int>::max();
+
+class Graph {
+public:
+    int V; // Number of vertices
+    vector<tuple<int, int, int>> edges; // (source, destination, weight)
+
+    Graph(int V) {
+        this->V = V;
+    }
+
+    void addEdge(int u, int v, int w) {
+        edges.emplace_back(u, v, w);
+    }
+
+    void bellmanFord(int start) {
+        vector<int> distance(V, INF);
+        distance[start] = 0;
+
+        for (int i = 1; i <= V - 1; i++) {
+            for (const auto& [u, v, w] : edges) {
+                if (distance[u] != INF && distance[u] + w < distance[v]) {
+                    distance[v] = distance[u] + w;
+                }
+            }
+        }
+
+        // Check for negative-weight cycles
+        for (const auto& [u, v, w] : edges) {
+            if (distance[u] != INF && distance[u] + w < distance[v]) {
+                cout << "Graph contains negative weight cycle" << endl;
+                return;
+            }
+        }
+
+        printDistances(distance);
+    }
+
+    void printDistances(const vector<int>& distance) {
+        cout << "Vertex Distance from Source" << endl;
+        for (int i = 0; i < V; i++) {
+            if (distance[i] == INF) {
+                cout << i << "\t\tINF" << endl;
+            } else {
+                cout << i << "\t\t" << distance[i] << endl;
+            }
+        }
+    }
+};
+
+int main() {
+    int V = 5; // Number of vertices
+    Graph g(V);
+
+    g.addEdge(0, 1, -1);
+    g.addEdge(0, 2, 4);
+    g.addEdge(1, 2, 3);
+    g.addEdge(1, 3, 2);
+    g.addEdge(1, 4, 2);
+    g.addEdge(3, 2, 5);
+    g.addEdge(3, 1, 1);
+    g.addEdge(4, 3, -3);
+
+    auto start = chrono::high_resolution_clock::now();
+    g.bellmanFord(0);
+    auto end = chrono::high_resolution_clock::now();
+
+    chrono::duration<double, milli> duration = end - start;
+    cout << "Execution Time: " << duration.count() << " ms" << endl;
+
+    return 0;
+}
+
+
+
+
+
+Floyd-Warshall
+
+
+#include <iostream>
+#include <vector>
+#include <chrono>
+#include <limits>
+
+using namespace std;
+
+const int INF = numeric_limits<int>::max();
+
+class Graph {
+public:
+    int V; // Number of vertices
+    vector<vector<int>> dist; // Distance matrix
+
+    Graph(int V) {
+        this->V = V;
+        dist.resize(V, vector<int>(V, INF));
+        for (int i = 0; i < V; i++) {
+            dist[i][i] = 0; // Distance from a vertex to itself is 0
+        }
+    }
+
+    void addEdge(int u, int v, int w) {
+        dist[u][v] = min(dist[u][v], w); // Handle multiple edges
+    }
+
+    void floydWarshall() {
+        for (int k = 0; k < V; k++) {
+            for (int i = 0; i < V; i++) {
+                for (int j = 0; j < V; j++) {
+                    if (dist[i][k] != INF && dist[k][j] != INF) {
+                        dist[i][j] = min(dist[i][j], dist[i][k] + dist[k][j]);
+                    }
+                }
+            }
+        }
+    }
+
+    void printDistances() {
+        cout << "Distance Matrix:" << endl;
+        for (int i = 0; i < V; i++) {
+            for (int j = 0; j < V; j++) {
+                if (dist[i][j] == INF) {
+                    cout << "INF\t";
+                } else {
+                    cout << dist[i][j] << "\t";
+                }
+            }
+            cout << endl;
+        }
+    }
+};
+
+int main() {
+    int V = 4; // Number of vertices
+    Graph g(V);
+
+    g.addEdge(0, 1, 5);
+    g.addEdge(0, 3, 10);
+    g.addEdge(1, 2, 3);
+    g.addEdge(2, 3, 1);
+    g.addEdge(3, 1, 2);
+
+    auto start = chrono::high_resolution_clock::now();
+    g.floydWarshall();
+    auto end = chrono::high_resolution_clock::now();
+
+    g.printDistances();
+
+    chrono::duration<double, milli> duration = end - start;
+    cout << "Execution Time: " << duration.count() << " ms" << endl;
+
+    return 0;
+}
+
+
+
+
+Travelling Salesman
+
+
+
+#include <iostream>
+#include <vector>
+#include <limits>
+#include <chrono>
+
+using namespace std;
+
+const int INF = numeric_limits<int>::max();
+
+class TSP {
+public:
+    int V; // Number of cities
+    vector<vector<int>> dist; // Distance matrix
+    vector<vector<int>> dp; // DP table
+
+    TSP(int V) : V(V), dist(V, vector<int>(V)), dp(1 << V, vector<int>(V, -1)) {}
+
+    void addEdge(int u, int v, int w) {
+        dist[u][v] = w; // Set distance between cities
+    }
+
+    int tsp(int mask, int pos) {
+        // If all cities have been visited
+        if (mask == (1 << V) - 1) {
+            return dist[pos][0]; // Return to the starting city
+        }
+
+        // Return cached value if already computed
+        if (dp[mask][pos] != -1) {
+            return dp[mask][pos];
+        }
+
+        int answer = INF;
+
+        // Try to go to every other city
+        for (int city = 0; city < V; city++) {
+            if ((mask & (1 << city)) == 0) { // If city is not visited
+                int newAnswer = dist[pos][city] + tsp(mask | (1 << city), city);
+                answer = min(answer, newAnswer);
+            }
+        }
+
+        return dp[mask][pos] = answer; // Store the result
+    }
+
+    void findShortestTour() {
+        int result = tsp(1, 0); // Start from the first city with only it visited
+        cout << "The shortest tour has a total distance of: " << result << endl;
+    }
+};
+
+int main() {
+    int V = 4; // Number of cities
+    TSP tsp(V);
+
+    tsp.addEdge(0, 1, 10);
+    tsp.addEdge(0, 2, 15);
+    tsp.addEdge(0, 3, 20);
+    tsp.addEdge(1, 2, 35);
+    tsp.addEdge(1, 3, 25);
+    tsp.addEdge(2, 3, 30);
+    tsp.addEdge(1, 0, 10);
+    tsp.addEdge(2, 0, 15);
+    tsp.addEdge(3, 0, 20);
+    tsp.addEdge(2, 1, 35);
+    tsp.addEdge(3, 1, 25);
+    tsp.addEdge(3, 2, 30);
+
+    auto start = chrono::high_resolution_clock::now();
+    tsp.findShortestTour();
+    auto end = chrono::high_resolution_clock::now();
+
+    chrono::duration<double, milli> duration = end - start;
+    cout << "Execution Time: " << duration.count() << " ms" << endl;
+
+    return 0;
+}
+
+
+
+String Matching
+
+
+#include <iostream>
+#include <vector>
+#include <chrono>
+
+using namespace std;
+
+class KMP {
+public:
+    string pattern;
+    vector<int> lps; // Longest Prefix Suffix array
+
+    KMP(const string& pat) : pattern(pat) {
+        computeLPSArray();
+    }
+
+    void computeLPSArray() {
+        int length = 0;
+        int M = pattern.size();
+        lps.resize(M, 0);
+        int i = 1;
+
+        while (i < M) {
+            if (pattern[i] == pattern[length]) {
+                length++;
+                lps[i] = length;
+                i++;
+            } else {
+                if (length != 0) {
+                    length = lps[length - 1];
+                } else {
+                    lps[i] = 0;
+                    i++;
+                }
+            }
+        }
+    }
+
+    void search(const string& text) {
+        int N = text.size();
+        int M = pattern.size();
+        int i = 0; // index for text
+        int j = 0; // index for pattern
+
+        while (i < N) {
+            if (pattern[j] == text[i]) {
+                i++;
+                j++;
+            }
+            if (j == M) {
+                cout << "Pattern found at index " << (i - j) << endl;
+                j = lps[j - 1];
+            } else if (i < N && pattern[j] != text[i]) {
+                if (j != 0) {
+                    j = lps[j - 1];
+                } else {
+                    i++;
+                }
+            }
+        }
+    }
+};
+
+int main() {
+    string text = "ABABDABACDABABCABAB";
+    string pattern = "ABABCABAB";
+
+    KMP kmp(pattern);
+
+    auto start = chrono::high_resolution_clock::now();
+    kmp.search(text);
+    auto end = chrono::high_resolution_clock::now();
+
+    chrono::duration<double, milli> duration = end - start;
+    cout << "Execution Time: " << duration.count() << " ms" << endl;
+
+    return 0;
+}
+
+
+
+
+Huffman Coding
+
+
+#include <iostream>
+#include <queue>
+#include <unordered_map>
+#include <vector>
+#include <string>
+#include <chrono>
+
+using namespace std;
+
+struct Node {
+    char character;
+    int frequency;
+    Node* left;
+    Node* right;
+
+    Node(char ch, int freq) : character(ch), frequency(freq), left(nullptr), right(nullptr) {}
+
+    // Comparison operator for the priority queue
+    bool operator>(const Node& other) const {
+        return frequency > other.frequency;
+    }
+};
+
+class HuffmanCoding {
+public:
+    void buildHuffmanTree(const string& text) {
+        unordered_map<char, int> frequency;
+        for (char ch : text) {
+            frequency[ch]++;
+        }
+
+        priority_queue<Node*, vector<Node*>, greater<Node*>> minHeap;
+
+        // Create a leaf node for each character and add it to the priority queue
+        for (const auto& pair : frequency) {
+            minHeap.push(new Node(pair.first, pair.second));
+        }
+
+        // Build the Huffman tree
+        while (minHeap.size() > 1) {
+            Node* left = minHeap.top(); minHeap.pop();
+            Node* right = minHeap.top(); minHeap.pop();
+
+            Node* internalNode = new Node('\0', left->frequency + right->frequency);
+            internalNode->left = left;
+            internalNode->right = right;
+
+            minHeap.push(internalNode);
+        }
+
+        root = minHeap.top();
+        buildCodes(root, "");
+    }
+
+    void buildCodes(Node* node, const string& code) {
+        if (!node) return;
+
+        if (node->character != '\0') {
+            codes[node->character] = code;
+        }
+
+        buildCodes(node->left, code + "0");
+        buildCodes(node->right, code + "1");
+    }
+
+    string encode(const string& text) {
+        string encodedString;
+        for (char ch : text) {
+            encodedString += codes[ch];
+        }
+        return encodedString;
+    }
+
+    string decode(const string& encodedString) {
+        string decodedString;
+        Node* current = root;
+
+        for (char bit : encodedString) {
+            if (bit == '0') {
+                current = current->left;
+            } else {
+                current = current->right;
+            }
+
+            // If it's a leaf node
+            if (current->left == nullptr && current->right == nullptr) {
+                decodedString += current->character;
+                current = root; // Reset for the next character
+            }
+        }
+
+        return decodedString;
+    }
+
+    void printCodes() {
+        cout << "Character Codes:\n";
+        for (const auto& pair : codes) {
+            cout << pair.first << ": " << pair.second << endl;
+        }
+    }
+
+private:
+    Node* root = nullptr;
+    unordered_map<char, string> codes;
+};
+
+int main() {
+    string text = "hello huffman";
+
+    HuffmanCoding huffman;
+
+    auto start = chrono::high_resolution_clock::now();
+    huffman.buildHuffmanTree(text);
+    string encodedString = huffman.encode(text);
+    string decodedString = huffman.decode(encodedString);
+    auto end = chrono::high_resolution_clock::now();
+
+    huffman.printCodes();
+    cout << "Encoded: " << encodedString << endl;
+    cout << "Decoded: " << decodedString << endl;
+
+    chrono::duration<double, milli> duration = end - start;
+    cout << "Execution Time: " << duration.count() << " ms" << endl;
+
+    return 0;
+}
+
+
+
+Fractional Knapsack
+
+
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <chrono>
+
+using namespace std;
+
+struct Item {
+    int value;
+    int weight;
+    double ratio; // value/weight ratio
+
+    Item(int v, int w) : value(v), weight(w) {
+        ratio = static_cast<double>(v) / w;
+    }
+};
+
+// Comparator function to sort items by their value-to-weight ratio
+bool compare(const Item& a, const Item& b) {
+    return a.ratio > b.ratio;
+}
+
+double fractionalKnapsack(int capacity, vector<Item>& items) {
+    sort(items.begin(), items.end(), compare); // Sort items by ratio
+
+    double totalValue = 0.0;
+
+    for (const auto& item : items) {
+        if (capacity <= 0) {
+            break; // Knapsack is full
+        }
+        
+        if (item.weight <= capacity) {
+            // If the item can fit in the knapsack
+            totalValue += item.value;
+            capacity -= item.weight;
+        } else {
+            // Take the fraction of the remaining item
+            totalValue += item.ratio * capacity;
+            capacity = 0; // Knapsack is now full
+        }
+    }
+
+    return totalValue;
+}
+
+int main() {
+    int capacity = 50; // Capacity of the knapsack
+    vector<Item> items = {
+        Item(60, 10),
+        Item(100, 20),
+        Item(120, 30)
+    };
+
+    auto start = chrono::high_resolution_clock::now();
+    double maxValue = fractionalKnapsack(capacity, items);
+    auto end = chrono::high_resolution_clock::now();
+
+    cout << "Maximum value in the Knapsack = " << maxValue << endl;
+
+    chrono::duration<double, milli> duration = end - start;
+    cout << "Execution Time: " << duration.count() << " ms" << endl;
+
+    return 0;
+}
+
+
+
+
+0/1 Knapsack
+
+
+#include <iostream>
+#include <vector>
+#include <chrono>
+#include <algorithm>
+
+using namespace std;
+
+class Knapsack {
+public:
+    // Function to solve the 0/1 Knapsack problem
+    int knapsack(int capacity, const vector<int>& weights, const vector<int>& values) {
+        int n = weights.size();
+        vector<vector<int>> dp(n + 1, vector<int>(capacity + 1, 0));
+
+        // Build the DP table
+        for (int i = 1; i <= n; i++) {
+            for (int w = 0; w <= capacity; w++) {
+                if (weights[i - 1] <= w) {
+                    dp[i][w] = max(dp[i - 1][w], dp[i - 1][w - weights[i - 1]] + values[i - 1]);
+                } else {
+                    dp[i][w] = dp[i - 1][w];
+                }
+            }
+        }
+
+        return dp[n][capacity]; // The maximum value that can be obtained
+    }
+};
+
+int main() {
+    int capacity = 50; // Capacity of the knapsack
+    vector<int> weights = {10, 20, 30}; // Weights of the items
+    vector<int> values = {60, 100, 120}; // Values of the items
+
+    Knapsack knapsack;
+
+    auto start = chrono::high_resolution_clock::now();
+    int maxValue = knapsack.knapsack(capacity, weights, values);
+    auto end = chrono::high_resolution_clock::now();
+
+    cout << "Maximum value in the Knapsack = " << maxValue << endl;
+
+    chrono::duration<double, milli> duration = end - start;
+    cout << "Execution Time: " << duration.count() << " ms" << endl;
+
+    return 0;
+}
+
+
+
+
+
+
